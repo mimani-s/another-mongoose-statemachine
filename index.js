@@ -55,6 +55,7 @@ module.exports = function (schema, options) {
       var toStateValue;
       var from;
       var exit;
+      var user;
 
       if(_.has(defaultState, 'value')) {
         toStateValue = states[transition.to].value;
@@ -74,6 +75,7 @@ module.exports = function (schema, options) {
       if (id instanceof Model) {
         instance = id;
         query._id = id._id;
+        user = id.__user
       }
 
       return (new Promise(function(resolve, reject) {
@@ -96,15 +98,22 @@ module.exports = function (schema, options) {
           exit = states[from].exit;
 
           query.state = from;
-          Model.update(query, update).exec(function(err, r) {
-            if (err) {
-              return reject(err);
-            }
+          Model.findOne(query, function (err1, modelObject) {
+              if (err1) {
+                  return reject(err1);
+              }
+              modelObject.__user = user;
+              modelObject.state = update.state;
+              modelObject.save(function(err, r) {
+                  if (err) {
+                      return reject(err);
+                  }
 
-            instance = instance || item;
-            instance.state = update.state;
-            instance.stateValue = update.stateValue;
-            resolve(r);
+                  instance = instance || item;
+                  instance.state = update.state;
+                  instance.stateValue = update.stateValue;
+                  resolve(r);
+              });
           });
         });
       })).then(function(result) {
@@ -137,3 +146,4 @@ function getDefaultState(states) {
   });
   return selected[0] || stateNames[0];
 }
+
